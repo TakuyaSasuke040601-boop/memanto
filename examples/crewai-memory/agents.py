@@ -22,7 +22,7 @@ def create_research_agent(
         goal=(
             "Research the AI agent framework market thoroughly and store "
             "every key finding as a structured memory using the memanto_remember tool. "
-            "Each memory must be concise (under 500 characters), use the correct "
+            "Each memory must be concise and atomic, use the correct "
             "memory type, and include relevant tags."
         ),
         backstory=(

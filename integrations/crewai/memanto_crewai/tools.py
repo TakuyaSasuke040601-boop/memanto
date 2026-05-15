@@ -87,7 +87,7 @@ class RememberInput(BaseModel):
     )
     content: str = Field(
         ...,
-        description="The memory content to store (max 500 characters). Be concise and atomic.",
+        description="The memory content to store (max 10000 characters). Be concise and atomic.",
     )
     confidence: float = Field(
         default=0.85,
@@ -141,7 +141,7 @@ class MemantoRememberTool(BaseTool):
         "Store a structured memory in Memanto for long-term persistence. "
         "Use this to save facts, observations, decisions, preferences, or any "
         "information that should be available to other agents or future sessions. "
-        "Each memory has a type, title (max 100 chars), content (max 500 chars), "
+        "Each memory has a type, title (max 100 chars), content (max 10000 chars), "
         "confidence score, and optional tags."
     )
     args_schema: type[BaseModel] = RememberInput

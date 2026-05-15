@@ -103,8 +103,6 @@ class Settings(BaseSettings):
 
     # Memory Configuration
     DEFAULT_TTL_SECONDS: int = 3600  # 1 hour
-    MAX_MEMORY_SIZE: int = 500  # characters
-    MAX_TITLE_SIZE: int = 100  # characters
 
     # Answer Configuration
     ANSWER_MODEL: str = "anthropic.claude-sonnet-4-6"
