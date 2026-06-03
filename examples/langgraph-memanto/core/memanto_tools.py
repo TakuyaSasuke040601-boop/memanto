@@ -42,8 +42,7 @@ MemoryType = Literal[
 
 def create_memanto_tools(client: SdkClient, agent_id: str):
     import threading
-    import time
-    
+
     _setup_lock = threading.Lock()
 
     def _do_setup():
@@ -59,18 +58,40 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
 
     @tool
     def memanto_remember(
-        memory_type: Annotated[MemoryType, Field(
-            description=(
-                f"The semantic type of memory to store. Must be exactly one of the types "
-                f"(without the description): fact, preference, goal, decision, artifact, "
-                f"learning, event, instruction, relationship, context, observation, "
-                f"commitment, or error. Context definitions: {VALID_MEMORY_TYPES}"
-            )
-        )],
-        title: Annotated[str, Field(description="A short, descriptive title for the memory (max 100 chars).")],
-        content: Annotated[str, Field(description="The actual information or fact to remember.")],
-        confidence: Annotated[float, Field(ge=0.0, le=1.0, description="Confidence level in this memory (0.0 to 1.0).")] = 0.85,
-        tags: Annotated[str, Field(description="Optional comma-separated tags for filtering (e.g., 'user_pref, setup').")] = "",
+        memory_type: Annotated[
+            MemoryType,
+            Field(
+                description=(
+                    f"The semantic type of memory to store. Must be exactly one of the types "
+                    f"(without the description): fact, preference, goal, decision, artifact, "
+                    f"learning, event, instruction, relationship, context, observation, "
+                    f"commitment, or error. Context definitions: {VALID_MEMORY_TYPES}"
+                )
+            ),
+        ],
+        title: Annotated[
+            str,
+            Field(
+                description="A short, descriptive title for the memory (max 100 chars)."
+            ),
+        ],
+        content: Annotated[
+            str, Field(description="The actual information or fact to remember.")
+        ],
+        confidence: Annotated[
+            float,
+            Field(
+                ge=0.0,
+                le=1.0,
+                description="Confidence level in this memory (0.0 to 1.0).",
+            ),
+        ] = 0.85,
+        tags: Annotated[
+            str,
+            Field(
+                description="Optional comma-separated tags for filtering (e.g., 'user_pref, setup')."
+            ),
+        ] = "",
     ) -> str:
         """
         Store a structured memory in Memanto for long-term persistence.
@@ -105,8 +126,15 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
     @tool
     def memanto_recall(
         query: Annotated[str, Field(description="The natural language search query.")],
-        limit: Annotated[int, Field(ge=1, le=20, description="Max number of memories to retrieve.")] = 5,
-        memory_types: Annotated[str, Field(description="Optional comma-separated types filter (e.g. 'fact,preference').")] = "",
+        limit: Annotated[
+            int, Field(ge=1, le=20, description="Max number of memories to retrieve.")
+        ] = 5,
+        memory_types: Annotated[
+            str,
+            Field(
+                description="Optional comma-separated types filter (e.g. 'fact,preference')."
+            ),
+        ] = "",
     ) -> str:
         """
         Search Memanto's persistent memory using natural language.
@@ -147,7 +175,11 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
         return "\n".join(output)
 
     @tool
-    def memanto_answer(question: Annotated[str, Field(description="The question to ask the memory system.")]) -> str:
+    def memanto_answer(
+        question: Annotated[
+            str, Field(description="The question to ask the memory system.")
+        ],
+    ) -> str:
         """
         Ask a question and get an AI-generated answer grounded in the agent's long-term memory.
         Uses RAG to synthesize insights from multiple stored memories.
