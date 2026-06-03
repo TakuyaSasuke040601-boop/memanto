@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Annotated
+
 from langchain_core.tools import tool
 from pydantic import Field
 
@@ -36,34 +38,44 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
 
     @tool
     def memanto_remember(
-        memory_type: str = Field(
-            ...,
-            pattern=r"^(fact|preference|goal|decision|artifact|learning|event|instruction|relationship|context|observation|commitment|error)$",
-            description=(
-                f"The semantic type of memory to store. Must be exactly one of the types "
-                f"(without the description): fact, preference, goal, decision, artifact, "
-                f"learning, event, instruction, relationship, context, observation, "
-                f"commitment, or error. Context definitions: {VALID_MEMORY_TYPES}"
+        memory_type: Annotated[
+            str,
+            Field(
+                pattern=r"^(fact|preference|goal|decision|artifact|learning|event|instruction|relationship|context|observation|commitment|error)$",
+                description=(
+                    f"The semantic type of memory to store. Must be exactly one of the types "
+                    f"(without the description): fact, preference, goal, decision, artifact, "
+                    f"learning, event, instruction, relationship, context, observation, "
+                    f"commitment, or error. Context definitions: {VALID_MEMORY_TYPES}"
+                ),
             ),
-        ),
-        title: str = Field(
-            ...,
-            description="Short title for the memory (max 100 characters).",
-        ),
-        content: str = Field(
-            ...,
-            description="The memory content to store (max 10000 characters). Be concise and atomic.",
-        ),
-        confidence: float = Field(
-            ...,
-            ge=0.0,
-            le=1.0,
-            description="Confidence score from 0.0 to 1.0. The agent must evaluate the certainty of the memory. Use 1.0 for verified explicit facts, 0.7-0.85 for observations/estimates, and lower for unverified information.",
-        ),
-        tags: str = Field(
-            default="",
-            description="Comma-separated tags for categorization (e.g. 'market,ai,trend'). Use lowercase.",
-        ),
+        ],
+        title: Annotated[
+            str,
+            Field(
+                description="Short title for the memory (max 100 characters).",
+            ),
+        ],
+        content: Annotated[
+            str,
+            Field(
+                description="The memory content to store (max 10000 characters). Be concise and atomic.",
+            ),
+        ],
+        confidence: Annotated[
+            float,
+            Field(
+                ge=0.0,
+                le=1.0,
+                description="Confidence score from 0.0 to 1.0. The agent must evaluate the certainty of the memory. Use 1.0 for verified explicit facts, 0.7-0.85 for observations/estimates, and lower for unverified information.",
+            ),
+        ],
+        tags: Annotated[
+            str,
+            Field(
+                description="Comma-separated tags for categorization (e.g. 'market,ai,trend'). Use lowercase.",
+            ),
+        ] = "",
     ) -> str:
         """
         Store a structured memory in Memanto for long-term persistence.
@@ -100,29 +112,37 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
 
     @tool
     def memanto_recall(
-        query: str = Field(
-            ...,
-            description="Natural language search query to find relevant memories.",
-        ),
-        limit: int = Field(
-            default=10,
-            ge=1,
-            le=100,
-            description="Maximum number of memories to retrieve.",
-        ),
-        memory_types: str = Field(
-            default="",
-            description=(
-                "Comma-separated memory types to filter by "
-                "(e.g. 'fact,observation'). Leave empty for all types."
+        query: Annotated[
+            str,
+            Field(
+                description="Natural language search query to find relevant memories.",
             ),
-        ),
-        min_similarity: float | None = Field(
-            default=None,
-            ge=0.0,
-            le=1.0,
-            description="Minimum similarity score from 0.0 to 1.0 to filter low-relevance memories.",
-        ),
+        ],
+        limit: Annotated[
+            int,
+            Field(
+                ge=1,
+                le=100,
+                description="Maximum number of memories to retrieve.",
+            ),
+        ] = 10,
+        memory_types: Annotated[
+            str,
+            Field(
+                description=(
+                    "Comma-separated memory types to filter by "
+                    "(e.g. 'fact,observation'). Leave empty for all types."
+                ),
+            ),
+        ] = "",
+        min_similarity: Annotated[
+            float | None,
+            Field(
+                ge=0.0,
+                le=1.0,
+                description="Minimum similarity score from 0.0 to 1.0 to filter low-relevance memories.",
+            ),
+        ] = None,
     ) -> str:
         """
         Search Memanto's persistent memory database using natural language.
@@ -176,10 +196,12 @@ def create_memanto_tools(client: SdkClient, agent_id: str):
 
     @tool
     def memanto_answer(
-        question: str = Field(
-            ...,
-            description="A question to answer using RAG over the agent's stored memories.",
-        ),
+        question: Annotated[
+            str,
+            Field(
+                description="A question to answer using RAG over the agent's stored memories.",
+            ),
+        ],
     ) -> str:
         """
         Ask a question and get an AI-generated answer grounded in the agent's
