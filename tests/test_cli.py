@@ -27,6 +27,7 @@ COMMAND_MODULES = [
     "memanto.cli.commands.connect",
     "memanto.cli.commands.memory_mgmt",
     "memanto.cli.commands.schedule",
+    "memanto.cli.commands.analyze",
 ]
 
 
@@ -453,6 +454,66 @@ class TestMEMANTOCLI:
         result = runner.invoke(app, ["connect", "list"])
         assert result.exit_code == 0
         assert "MEMANTO Agent Integrations" in result.stdout
+
+    def test_analyze_help(self):
+        """Test 'memanto analyze --help'"""
+        result = runner.invoke(app, ["analyze", "--help"])
+        assert result.exit_code == 0
+        assert "supermemory" in result.stdout.lower()
+
+    def test_analyze_supermemory_export(self, mock_all_clients, tmp_path):
+        """Test 'memanto analyze supermemory' end-to-end with mocked export + LLM."""
+        export = {
+            "exported_at": "2026-06-04T00:00:00Z",
+            "summary": {
+                "document_count": 2,
+                "chunk_count": 5,
+                "memory_entry_count": 3,
+                "container_tag_count": 1,
+                "connection_count": 0,
+            },
+            "documents": [],
+            "memories": [],
+        }
+        export_file = tmp_path / "supermemory_export.json"
+
+        # Moorcheh answer endpoint returns a markdown narrative.
+        mock_all_clients.answer.return_value = {
+            "answer": "## Executive summary\nMigrating saves tokens.",
+        }
+
+        with (
+            patch("memanto.cli.commands.analyze.config_manager") as mock_cfg,
+            patch(
+                "memanto.cli.commands.analyze.run_supermemory_export",
+                return_value=(export_file, export),
+            ) as mock_export,
+        ):
+            mock_cfg.get_supermemory_api_key.return_value = "sm_test_key"
+            mock_cfg.get_analyze_dir.return_value = tmp_path
+            mock_cfg.get_active_session.return_value = ("test-agent", "test-token")
+            mock_cfg.get_answer_config.return_value = {
+                "model": "anthropic.claude-sonnet-4-6"
+            }
+
+            result = runner.invoke(
+                app,
+                ["analyze", "supermemory", "--api-key", "sm_test_key"],
+            )
+
+        assert result.exit_code == 0, result.stdout
+        assert "Analysis complete" in result.stdout
+        mock_export.assert_called_once()
+        mock_cfg.set_supermemory_api_key.assert_called_with("sm_test_key")
+        assert mock_export.call_args[0][0] == "sm_test_key"
+
+        # A timestamped run folder with the report was created under tmp_path.
+        reports = list(tmp_path.glob("*/analyze-report.md"))
+        assert len(reports) == 1
+        report_text = reports[0].read_text(encoding="utf-8")
+        assert "Memanto vs. Supermemory" in report_text
+        assert "Executive summary" in report_text
+        assert "Method & assumptions" in report_text
 
 
 if __name__ == "__main__":
