@@ -4,9 +4,9 @@ import time
 import uuid
 import warnings
 
-from core.memanto_tools import create_memanto_tools
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
+from langgraph_memanto import create_memanto_tools
 
 from memanto.cli.client.sdk_client import SdkClient
 
