@@ -103,12 +103,20 @@ class _DocumentsAdapter:
             _FEATURE_DISABLED_MSG.format(feature="upload_file")
         )
 
-    def fetch_text_data(self, namespace_name: str) -> Any:
+    def fetch_text_data(
+        self,
+        namespace_name: str,
+        limit: int = 100,
+        next_token: str | None = None,
+    ) -> Any:
         """Emulate cloud's ``fetch_text_data`` via on-prem ``search``.
 
-        Cloud returns ``{"items": [...]}`` capped at 100 per namespace; we
-        approximate the same shape with a broad search so callers (memory
-        export, UI, etc.) keep working without branching.
+        Cloud returns ``{"items": [...], "pagination": {...}}`` paginated up
+        to ``limit`` per page; we approximate the same shape with a broad
+        search so callers (memory export, UI, etc.) keep working without
+        branching. On-prem search has no cursor, so we always return a
+        single page (no ``pagination`` key) — callers should terminate
+        their pagination loop when ``has_more`` is missing/false.
         """
         last_exc: Exception | None = None
         for probe_query in (" ", "*", "."):
@@ -117,7 +125,7 @@ class _DocumentsAdapter:
                     {
                         "query": probe_query,
                         "namespaces": [namespace_name],
-                        "top_k": 100,
+                        "top_k": limit,
                     }
                 )
                 if isinstance(resp, dict):

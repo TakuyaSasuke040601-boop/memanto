@@ -790,8 +790,10 @@ async def recall_as_of(
             )
         )
 
-    limit = request.limit if request.limit is not None else settings.RECALL_LIMIT
-    CostGuard.validate_k_limit(limit)
+    # request.limit is None → fetch all (no cap). Cost guard only applies when capped.
+    limit = request.limit
+    if limit is not None:
+        CostGuard.validate_k_limit(limit)
 
     try:
         read_service = MemoryReadService(client)
@@ -841,8 +843,10 @@ async def recall_changed_since(
             )
         )
 
-    limit = request.limit if request.limit is not None else settings.RECALL_LIMIT
-    CostGuard.validate_k_limit(limit)
+    # request.limit is None → fetch all (no cap). Cost guard only applies when capped.
+    limit = request.limit
+    if limit is not None:
+        CostGuard.validate_k_limit(limit)
 
     try:
         read_service = MemoryReadService(client)
@@ -893,8 +897,10 @@ async def recall_recent(
             )
         )
 
-    limit = request.limit if request.limit is not None else settings.RECALL_LIMIT
-    CostGuard.validate_k_limit(limit)
+    # request.limit is None → fetch all (no cap). Cost guard only applies when capped.
+    limit = request.limit
+    if limit is not None:
+        CostGuard.validate_k_limit(limit)
 
     try:
         read_service = MemoryReadService(client)

@@ -2153,9 +2153,13 @@
                     <h2>Conflict Resolution</h2>
                     <p>Review and resolve contradicting memories</p>
                 </div>
-                <div style="display:flex;gap:10px;margin-bottom:18px">
+                <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center;flex-wrap:wrap">
                     <button class="btn btn-primary btn-sm" id="btnDetectConflicts" onclick="detectConflictsNow()">⚡ Detect Conflicts Now</button>
                     <button class="btn btn-secondary btn-sm" onclick="loadConflicts()">Refresh</button>
+                    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+                        <label for="conflictsDateInput" style="color:var(--text-dim);font-size:13px">Date</label>
+                        <input type="date" id="conflictsDateInput" onchange="loadConflicts()" style="background:var(--bg-secondary);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-family:inherit;font-size:13px">
+                    </div>
                 </div>
                 <div id="conflictsContent">
                     <div class="loading-overlay"><span class="spinner"></span> Loading conflicts...</div>
@@ -2642,6 +2646,16 @@
             openHistoryForDay(todayKey());
         }
 
+        async function goToConflictsForDay(key) {
+            // Seed the date input before navigation so loadConflicts()'s
+            // initial pass picks up the selected day (avoids a race where
+            // a today-scoped fetch overwrites the selected-day results).
+            const input = document.getElementById('conflictsDateInput');
+            if (input) input.value = key || todayKey();
+            goToPage('conflicts');
+            await detectConflictsNow();
+        }
+
         async function openHistoryForDay(key) {
             S.historyFilter = key;
             S.summaryOpen = true;
@@ -2945,7 +2959,7 @@
         async function fetchRecentMemories() {
             if (!S.agentId || !S.token) return;
             try {
-                const res = await api('POST', `/api/v2/agents/${S.agentId}/recall/recent`, { limit: 100 });
+                const res = await api('POST', `/api/v2/agents/${S.agentId}/recall/recent`, {});
                 S.history = res.memories || [];
             } catch { }
         }
@@ -2958,7 +2972,7 @@
             }
             box.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading history...</div>';
             try {
-                const res = await api('POST', `/api/v2/agents/${S.agentId}/recall/recent`, { limit: 100 });
+                const res = await api('POST', `/api/v2/agents/${S.agentId}/recall/recent`, {});
                 S.history = res.memories || [];
                 await fetchConflictScans();
                 // Preserve any pre-set filter/summary state (e.g. dashboard
@@ -3030,7 +3044,14 @@
                 return monthThis !== monthPrev ? monthNames[monthThis] : '';
             });
 
-            const headlineCount = [...byDay.values()].reduce((s, v) => s + v.length, 0);
+            // Only count memories whose day falls inside the displayed 53-week
+            // window — byDay holds the full S.history (now unbounded), so an
+            // unfiltered reduce would mislabel the "in the last year" headline.
+            const startKey = dayKey(startDate);
+            const endKey = dayKey(endDate);
+            const headlineCount = [...byDay.entries()]
+                .filter(([k]) => k >= startKey && k <= endKey)
+                .reduce((s, [, v]) => s + v.length, 0);
 
             let html = '';
             html += `<div class="hh-stats">
@@ -3042,7 +3063,7 @@
 
             html += `<div class="panel">
                 <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-                    <span>${headlineCount} ${headlineCount === 1 ? 'memory' : 'memories'} in the last year <span class="hh-cap-note">(showing latest ${total} fetched; API capped at 100)</span></span>
+                    <span>${headlineCount} ${headlineCount === 1 ? 'memory' : 'memories'} in the last year</span>
                 </div>
                 <div class="hh-container">
                     <div class="hh-months"><span></span>${monthLabels.map(l => `<span>${l}</span>`).join('')}</div>
@@ -3222,6 +3243,19 @@
             }
 
             let html = '';
+            if (filter) {
+                const staleCount = staleMemCountForDay(filter);
+                if (staleCount > 0) {
+                    const scan = (S.conflictScans || {})[filter];
+                    const reason = scan
+                        ? `${staleCount} ${staleCount === 1 ? 'memory was' : 'memories were'} stored after the last conflict scan (${fmtDate(scan.scanned_at)})`
+                        : `${staleCount} ${staleCount === 1 ? 'memory has' : 'memories have'} never been scanned`;
+                    html += `<div style="background:rgba(239,68,68,0.12);border:1px solid var(--error);border-radius:8px;padding:12px 14px;margin-bottom:14px;font-size:13px;color:var(--text-secondary);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <span>⚠ ${reason} for <strong>${filter}</strong>. Run conflict detection to review.</span>
+                        <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="goToConflictsForDay('${filter}')">Run Detect Conflicts</button>
+                    </div>`;
+                }
+            }
             dates.forEach(dateKey => {
                 const list = byDay.get(dateKey).slice().sort((a, b) => {
                     const da = parseMemDate(a.created_at)?.getTime() || 0;
@@ -3507,12 +3541,19 @@
         // ================================================================
         // CONFLICTS
         // ================================================================
+        function conflictsDateValue() {
+            const el = document.getElementById('conflictsDateInput');
+            const v = el && el.value ? el.value : '';
+            return v || todayKey();
+        }
+
         async function detectConflictsNow() {
             const btn = document.getElementById('btnDetectConflicts');
             const prev = btn ? btn.innerHTML : null;
             if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Detecting...'; }
             try {
-                const data = await api('POST', '/api/ui/conflicts/generate', {});
+                const date = conflictsDateValue();
+                const data = await api('POST', '/api/ui/conflicts/generate', { date });
                 const status = (data.conflicts && data.conflicts.status) || 'unknown';
                 if (status === 'success') {
                     const count = (data.conflicts && data.conflicts.conflict_count) || 0;
@@ -3542,12 +3583,15 @@
             container.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading conflicts...</div>';
 
             try {
-                const data = await api('GET', '/api/ui/conflicts');
+                const dateInput = document.getElementById('conflictsDateInput');
+                if (dateInput && !dateInput.value) dateInput.value = todayKey();
+                const date = conflictsDateValue();
+                const data = await api('GET', `/api/ui/conflicts?date=${encodeURIComponent(date)}`);
                 const conflicts = data.conflicts || [];
                 await fetchConflictScans();
                 await fetchRecentMemories();
 
-                const scanDate = data.date || todayKey();
+                const scanDate = data.date || date;
                 const scan = (S.conflictScans || {})[scanDate];
                 const staleCount = staleMemCountForDay(scanDate);
                 let banner = '';
@@ -3651,10 +3695,10 @@
 
         // Called after any operation that mutates conflict files (detect, resolve).
         // Refreshes shared state and re-renders any visible page that depends on it.
+        // (loadConflictBadge() refreshes history itself — don't double-fetch here.)
         async function invalidateConflictState() {
             await fetchConflictScans();
-            await fetchRecentMemories();
-            loadConflictBadge();
+            await loadConflictBadge();
             if (S._historyLoaded) renderHistory();
             const conflictsPage = document.getElementById('page-conflicts');
             if (conflictsPage && conflictsPage.classList.contains('active')) {
@@ -3674,7 +3718,7 @@
             cards.innerHTML = '<div class="loading-overlay"><span class="spinner"></span> Loading analytics...</div>';
 
             try {
-                const res = await api('POST', `/api/v2/agents/${S.agentId}/recall/recent`, { limit: 100 });
+                const res = await api('POST', `/api/v2/agents/${S.agentId}/recall/recent`, {});
                 const mems = res.memories || [];
 
                 const typeCounts = {};
