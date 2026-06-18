@@ -1,6 +1,6 @@
 <p align="center">
     <a href="https://www.memanto.ai/">
-    <img alt="MEMANTO Logo" src="https://github.com/moorcheh-ai/memanto/raw/main/assets/memanto.svg" width="500">
+    <img alt="MEMANTO Logo" src="https://github.com/moorcheh-ai/memanto/raw/main/assets/memanto-logo.svg" width="500">
     </a>
 </p>
 
@@ -8,13 +8,13 @@
   <h1>Your agents focus. Memanto remembers.</h1>
 </div>
 
+<h2 align="center">
+  <em>A companion memory agent with its own intelligence that keeps your agents focused on their tasks.</em>
+</h2>
+
 <p align="center">
   Persistent memory for Claude Code, Cursor, Codex, and 14+ other agents, built on the world's first information-theoretic search engine. 100% free, open source, and runs entirely on your machine - no API keys, no vector database, no backend to babysit.
 </p>
-
-<h1 align="center">
-  <em>A companion memory agent with its own intelligence that keeps your agents focused on their tasks.</em>
-</h1>
 
 <p align="center">
   <a href="https://discord.gg/CyxRFQSQ3p">

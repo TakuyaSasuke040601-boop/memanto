@@ -23,7 +23,7 @@
       .eye-left-closed { animation: eyeWinkClosed 2.5s infinite; }
     </style>
   </defs>
-  <rect x="-20" y="-20" width="460" height="200" fill="none" rx="20" />
+  <rect x="-20" y="-20" width="460" height="200" fill="#111111" rx="20" />
   <g id="logo-icon" fill="#5534a5">
     <path d="M 18,0 H 78 V 24 H 66 V 12 H 60 V 24 H 36 V 12 H 30 V 24 H 18 Z M 12,24 H 18 V 48 H 12 Z M 78,24 H 84 V 48 H 78 Z M 18,48 H 78 V 60 H 66 V 72 H 30 V 60 H 18 Z" />
     <g id="eyes">
