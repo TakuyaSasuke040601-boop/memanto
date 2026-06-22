@@ -67,16 +67,44 @@ When `close()` is called (or the Node process exits), the server is sent `SIGTER
 | `port` | `number` | auto | Bind the spawned server to this port. |
 | `host` | `string` | `127.0.0.1` | Bind host. |
 | `uvxPath` | `string` | `uvx` | Override the path to `uvx`. |
-| `packageSpec` | `string` | `memanto` | Package spec passed to `uvx`. Use `memanto==0.1.4` to pin. |
+| `packageSpec` | `string` | `memanto` | Package spec passed to `uvx`. Use `memanto==0.2.2` to pin. |
 | `healthTimeoutMs` | `number` | `60000` | Health-check timeout. |
 | `verbose` | `boolean` | `false` | Stream server logs to the parent process. |
 
 ### Methods
 
+**Memory writes**
+
 - `remember({ content, type?, title?, confidence?, tags?, source?, provenance? })`
+- `batchRemember(items[])` — up to 100 items per request, same shape as `remember`.
+- `extractMemories({ messages, dryRun?, maxMemories?, aiModel? })` — extract typed memory candidates from chat-style turns. Set `dryRun: true` to preview without writing. Requires `memanto >= 0.2.3`.
+- `uploadFile({ path, filename? })` — uploads a `.pdf`, `.docx`, `.xlsx`, `.json`, `.txt`, `.csv`, or `.md` file (max 5GB).
+- `deleteMemory(memoryId)` — delete a single memory by id.
+
+**Memory reads**
+
 - `recall({ query, limit?, minSimilarity?, type? })`
+- `recallAsOf({ asOf, limit?, type? })` — point-in-time recall. `asOf` is `YYYY-MM-DD` or ISO 8601.
+- `recallChangedSince({ since, limit?, type? })` — what changed after `since`.
+- `recallRecent({ limit?, type? })` — newest-first.
 - `answer({ question, limit?, threshold?, temperature?, aiModel?, kioskMode? })`
-- `close()` — stop the server.
+
+**Analysis**
+
+- `dailySummary({ date?, outputPath? })`
+- `generateConflicts({ date? })` — run conflict detection.
+- `listConflicts({ date? })` — list unresolved conflicts.
+- `resolveConflict({ conflictIndex, action, date?, manualContent?, manualType? })` — `action` is `keep_old | keep_new | keep_both | remove_both | manual`.
+
+**Agent + session lifecycle**
+
+- `listAgents()`
+- `getAgent()`
+- `createAgent({ pattern?, description? })` — explicit create (only needed when `autoCreate: false`).
+- `deleteAgent()`
+- `deactivate()` — end the current session (the next call rebootstraps).
+- `status()` — current session info.
+- `close()` — stop the spawned server.
 
 ### Helpers
 
