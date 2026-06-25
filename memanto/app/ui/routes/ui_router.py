@@ -92,7 +92,7 @@ def _build_ui_direct_client() -> DirectClient | None:
 
 
 @router.get("/api/ui/config")
-async def get_ui_config():
+async def get_ui_config(_: None = Depends(_require_local)):
     """
     Get current MEMANTO configuration for the Web UI.
 
@@ -392,7 +392,7 @@ async def update_api_key(body: dict, _: None = Depends(_require_local)):
 
 
 @router.get("/api/ui/conflicts")
-async def list_conflicts(agent_id: str | None = None, date: str | None = None):
+async def list_conflicts(agent_id: str | None = None, date: str | None = None, _: None = Depends(_require_local)):
     """
     List unresolved conflicts for an agent.
     Uses DirectClient.list_conflicts under the hood.
@@ -423,7 +423,7 @@ async def list_conflicts(agent_id: str | None = None, date: str | None = None):
 
 
 @router.get("/api/ui/conflict-scans")
-async def list_conflict_scans(agent_id: str | None = None):
+async def list_conflict_scans(agent_id: str | None = None, _: None = Depends(_require_local)):
     """
     Return, per day, when the conflict scan last ran for an agent.
 
@@ -440,6 +440,10 @@ async def list_conflict_scans(agent_id: str | None = None):
         if not aid:
             return {"scans": {}, "agent_id": None}
         agent_id = aid
+
+    # Guard against glob-special characters that would leak cross-agent conflict data
+    if not re.match(r"^[A-Za-z0-9_-]+$", agent_id):
+        raise HTTPException(status_code=400, detail="Invalid agent_id: must match [A-Za-z0-9_-]+")
 
     conflicts_dir = Path.home() / ".memanto" / "conflicts"
     scans: dict[str, dict] = {}
@@ -473,7 +477,7 @@ async def list_conflict_scans(agent_id: str | None = None):
 
 
 @router.get("/api/ui/daily-summary")
-async def read_daily_summary(agent_id: str | None = None, date: str | None = None):
+async def read_daily_summary(agent_id: str | None = None, date: str | None = None, _: None = Depends(_require_local)):
     """
     Return the existing daily summary for an agent/date if one was already
     generated. Does NOT trigger generation — that's the POST endpoint.
@@ -514,7 +518,7 @@ async def read_daily_summary(agent_id: str | None = None, date: str | None = Non
 
 
 @router.post("/api/ui/daily-summary")
-async def generate_daily_summary(body: dict | None = None):
+async def generate_daily_summary(body: dict | None = None, _: None = Depends(_require_local)):
     """
     Trigger an on-demand daily summary for the active agent.
     Expects (optional): {"agent_id": "...", "date": "YYYY-MM-DD",
@@ -546,7 +550,7 @@ async def generate_daily_summary(body: dict | None = None):
 
 
 @router.post("/api/ui/conflicts/generate")
-async def generate_conflict_report(body: dict | None = None):
+async def generate_conflict_report(body: dict | None = None, _: None = Depends(_require_local)):
     """
     Trigger an on-demand conflict report for the active agent. This is the
     same work the scheduled task performs.
@@ -575,7 +579,7 @@ async def generate_conflict_report(body: dict | None = None):
 
 
 @router.post("/api/ui/conflicts/resolve")
-async def resolve_conflict(body: dict):
+async def resolve_conflict(body: dict, _: None = Depends(_require_local)):
     """
     Resolve a single conflict.
     Expects: {"agent_id": "...", "date": "...", "conflict_index": 0, "action": "keep_old"|"keep_new"|"keep_both"|"remove_both"|"manual", "manual_content": "..."}
@@ -617,7 +621,7 @@ async def resolve_conflict(body: dict):
 
 
 @router.get("/api/ui/connections")
-async def get_connections():
+async def get_connections(_: None = Depends(_require_local)):
     """List all supported agents merged with the local connections registry.
 
     Returns the agent catalog from `agent_registry`, each enriched with what's
