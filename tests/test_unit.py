@@ -453,3 +453,21 @@ class TestValidateSafeId:
             svc.get_session('../../etc/shadow')
 
         assert not (tmp_path / 'etc').exists()
+
+    def test_path_traversal_blocked_via_date_in_daily_analysis(self, tmp_path):
+        """Ensure DailyAnalysisService raises on traversal attempt via date param."""
+        from memanto.app.services.daily_analysis_service import DailyAnalysisService
+
+        svc = DailyAnalysisService(
+            sessions_dir=tmp_path / 'sessions',
+            summaries_dir=tmp_path / 'summaries',
+        )
+
+        with pytest.raises(ValueError, match='invalid characters'):
+            svc.generate_summary('agent1', '../../etc/passwd')
+
+        with pytest.raises(ValueError, match='invalid characters'):
+            svc.generate_conflict_report('agent1', '../../etc/passwd')
+
+        assert not (tmp_path / 'etc').exists()
+
