@@ -359,6 +359,7 @@ class TestMemoryWriteServiceTimestamps:
         source_created = datetime(2020, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
 
         memory = MemoryRecord(
+            type="preference",
             title="Imported fact",
             content="Original imported memory",
             scope_type="agent",
@@ -372,7 +373,10 @@ class TestMemoryWriteServiceTimestamps:
         service.batch_store_memories([memory])
 
         uploaded = client.documents.upload.call_args.kwargs["documents"][0]
-        assert uploaded["created_at"].startswith("2020-01-02T03:04:05")
+        assert uploaded["created_at"] == "2020-01-02T03:04:05"
+        assert memory.created_at.tzinfo is None
+        memory.compute_confidence()
+        memory.trust_score()
 
     def test_batch_store_overrides_non_imported_created_at(self):
         from memanto.app.core import MemoryRecord
@@ -394,10 +398,14 @@ class TestMemoryWriteServiceTimestamps:
             created_at=source_created,
         )
 
+        before_store = datetime.utcnow()
         service.batch_store_memories([memory])
+        after_store = datetime.utcnow()
 
         uploaded = client.documents.upload.call_args.kwargs["documents"][0]
         assert not uploaded["created_at"].startswith("2020-01-02T03:04:05")
+        parsed_created_at = datetime.fromisoformat(uploaded["created_at"])
+        assert before_store <= parsed_created_at <= after_store
 
 
 class TestMEMANTOArchitecture:
