@@ -67,6 +67,8 @@ def _validate_memory_type_filters(value: list[str] | None) -> list[str] | None:
 
 
 class RecallRequest(BaseModel):
+    """Request body for semantic recall against an agent session."""
+
     query: str = Field(..., min_length=1, description="Search query")
     limit: int | None = Field(default=None, ge=1, description="Max results")
     min_similarity: float | None = Field(
@@ -82,6 +84,8 @@ class RecallRequest(BaseModel):
 
 
 class RecallAsOfRequest(BaseModel):
+    """Request body for point-in-time temporal recall."""
+
     as_of: datetime = Field(
         ...,
         description="Point-in-time — YYYY-MM-DD (defaults to end of day) or full ISO datetime e.g. 2025-11-01T14:30:00Z",
@@ -98,6 +102,7 @@ class RecallAsOfRequest(BaseModel):
     @field_validator("as_of", mode="before")
     @classmethod
     def parse_as_of(cls, v: object) -> datetime:
+        """Normalize date-only and ISO inputs to a timezone-aware timestamp."""
         if isinstance(v, datetime):
             return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
         if isinstance(v, date):
@@ -122,6 +127,8 @@ class RecallAsOfRequest(BaseModel):
 
 
 class RecallChangedSinceRequest(BaseModel):
+    """Request body for temporal recall over memories changed since a timestamp."""
+
     since: datetime = Field(
         ...,
         description="Start of change window — YYYY-MM-DD (defaults to start of day) or full ISO datetime e.g. 2025-11-01T00:00:00Z",
@@ -138,6 +145,7 @@ class RecallChangedSinceRequest(BaseModel):
     @field_validator("since", mode="before")
     @classmethod
     def parse_since(cls, v: object) -> datetime:
+        """Normalize date-only and ISO inputs to a timezone-aware window start."""
         if isinstance(v, datetime):
             return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
         if isinstance(v, date):
@@ -162,6 +170,8 @@ class RecallChangedSinceRequest(BaseModel):
 
 
 class RecallRecentRequest(BaseModel):
+    """Request body for newest-first temporal recall."""
+
     limit: int | None = Field(default=None, ge=1, description="Max results")
     type: list[str] | None = Field(default=None, description="Memory type filters")
 
@@ -173,6 +183,8 @@ class RecallRecentRequest(BaseModel):
 
 
 class MemoryEditRequest(BaseModel):
+    """Request body for updating editable memory fields."""
+
     title: str | None = Field(default=None, max_length=100)
     content: str | None = Field(default=None, max_length=10000)
     type: str | None = None
@@ -181,6 +193,7 @@ class MemoryEditRequest(BaseModel):
     source: str | None = None
 
     def to_updates(self) -> dict[str, object]:
+        """Return only fields explicitly supplied by the API caller."""
         return self.model_dump(exclude_none=True)
 
 
