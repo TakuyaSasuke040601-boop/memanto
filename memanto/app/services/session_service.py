@@ -28,7 +28,7 @@ from memanto.app.utils.errors import (
     SessionNotFoundError,
 )
 from memanto.app.utils.ids import generate_id
-from memanto.app.utils.temporal_helpers import utc_now
+from memanto.app.utils.temporal_helpers import as_utc_naive, utc_now
 
 _session_service = None
 
@@ -161,7 +161,7 @@ class SessionService:
             token = SessionToken(**payload)
 
             # Validate expiration
-            if utc_now() > token.expires_at:
+            if utc_now() > as_utc_naive(token.expires_at):
                 raise SessionExpiredError(
                     f"Session {token.session_id} expired at {token.expires_at}"
                 )
@@ -239,7 +239,7 @@ class SessionService:
             raise SessionNotFoundError(f"No session found for agent {agent_id}")
 
         ended_at = utc_now()
-        duration = (ended_at - session.started_at).total_seconds() / 3600
+        duration = (ended_at - as_utc_naive(session.started_at)).total_seconds() / 3600
 
         # Update session status
         session.status = SessionStatus.TERMINATED

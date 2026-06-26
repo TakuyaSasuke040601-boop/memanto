@@ -4,14 +4,14 @@ MEMANTO Core Unit Tests (No Server Required)
 Tests the session and agent services directly without HTTP layer.
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import jwt
 import pytest
 
 from memanto.app.config import settings
-from memanto.app.models.session import AgentCreate, AgentPattern, SessionStatus
+from memanto.app.models.session import AgentCreate, AgentPattern, Session, SessionStatus
 from memanto.app.services.agent_service import AgentService
 from memanto.app.services.session_service import SessionService
 
@@ -81,6 +81,43 @@ class TestSessionService:
         assert token_payload.namespace == "memanto_agent_test-agent"
 
         print("✅ Session validation successful")
+
+    def test_session_status_handles_aware_expiration_timestamp(self):
+        """Session status helpers must handle ISO timestamps with a UTC timezone."""
+        session = Session(
+            session_id="sess-test",
+            session_token="token-test",
+            agent_id="test-agent",
+            namespace="memanto_agent_test-agent",
+            started_at="2026-03-19T14:00:00Z",
+            expires_at=(datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+            status=SessionStatus.ACTIVE,
+        )
+
+        assert session.is_expired() is False
+        assert session.is_active() is True
+        assert session.time_remaining().total_seconds() > 0
+
+    def test_validate_session_handles_aware_expiration_timestamp(self, session_service):
+        """JWT payloads with timezone-aware datetimes should validate cleanly."""
+        token = jwt.encode(
+            {
+                "agent_id": "test-agent",
+                "namespace": "memanto_agent_test-agent",
+                "session_id": "sess-test",
+                "started_at": "2026-03-19T14:00:00Z",
+                "expires_at": (
+                    datetime.now(timezone.utc) + timedelta(hours=1)
+                ).isoformat(),
+            },
+            session_service.secret_key,
+            algorithm="HS256",
+        )
+
+        payload = session_service.validate_session(token)
+
+        assert payload.agent_id == "test-agent"
+        assert payload.expires_at.tzinfo is not None
 
     def test_validate_expired_session(self, session_service):
         """Test session validation fails for expired session"""
