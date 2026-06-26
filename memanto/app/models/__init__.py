@@ -5,7 +5,7 @@ MEMANTO API Models
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from memanto.app.constants import MemoryType, ScopeType, SourceType, StatusType
 
@@ -94,6 +94,20 @@ class ConversationMessage(BaseModel):
 
     role: str = Field(..., min_length=1, max_length=50)
     content: str = Field(..., min_length=1, max_length=10000)
+
+    @field_validator("role")
+    @classmethod
+    def role_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("role must be a non-empty string")
+        return value
+
+    @field_validator("content")
+    @classmethod
+    def content_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("content must be a non-empty string")
+        return value
 
 
 class ExtractMemoriesRequest(BaseModel):
