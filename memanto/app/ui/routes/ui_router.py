@@ -34,11 +34,13 @@ _SAFE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 def _validate_agent_id(agent_id: str) -> None:
+    """Reject agent identifiers that cannot be safely embedded in file paths."""
     if not _SAFE_AGENT_ID_RE.fullmatch(agent_id):
         raise HTTPException(status_code=400, detail="Invalid agent identifier")
 
 
 def _validate_summary_key(agent_id: str, date: str) -> None:
+    """Validate the agent/date pair before building summary or conflict paths."""
     if not _SAFE_DATE_RE.fullmatch(date):
         raise HTTPException(status_code=400, detail="Invalid summary identifier")
     _validate_agent_id(agent_id)
