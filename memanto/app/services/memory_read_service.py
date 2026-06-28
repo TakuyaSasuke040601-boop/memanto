@@ -288,6 +288,7 @@ class MemoryReadService:
 
             # Sort by the timestamp that made the memory qualify.
             def _changed_sort_key(m: dict[str, Any]) -> datetime:
+                """Return a stable aware timestamp for changed-memory ordering."""
                 raw = m.get("updated_at") or m.get("created_at")
                 if not raw:
                     return datetime.min.replace(tzinfo=timezone.utc)
