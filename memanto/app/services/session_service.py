@@ -221,18 +221,25 @@ class SessionService:
 
         return session
 
-    def end_session(self, agent_id: str) -> SessionSummary:
+    def end_session(
+        self, agent_id: str, memories_created: int = 0
+    ) -> SessionSummary:
         """
-        End session for agent
+        End session for agent.
 
         Args:
-            agent_id: Agent identifier
+            agent_id: Agent identifier.
+            memories_created: Number of memories written during this session.
+                Callers that have access to the live backend count (e.g. the
+                HTTP route) should pass the namespace-document delta so the
+                summary is accurate.  Defaults to 0 for backwards-compatible
+                callers (CLI, tests) that cannot perform the async lookup.
 
         Returns:
-            SessionSummary with session statistics
+            SessionSummary with session statistics.
 
         Raises:
-            SessionNotFoundError: If session doesn't exist
+            SessionNotFoundError: If session doesn't exist.
         """
         session = self.get_session(agent_id)
         if not session:
@@ -249,9 +256,6 @@ class SessionService:
         active_session = self.get_active_session()
         if active_session and active_session.agent_id == agent_id:
             self._clear_active_session()
-
-        # TODO: Get actual memory count from backend
-        memories_created = 0
 
         return SessionSummary(
             session_id=session.session_id,
