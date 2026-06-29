@@ -215,10 +215,6 @@ async def remember(
             memory_record=memory,
         )
 
-        # skip trust_score() computation
-        ## Compute trust score for response
-        # trust_score = memory.trust_score()
-
         return {
             "memory_id": result["id"],
             "agent_id": agent_id,
@@ -229,8 +225,6 @@ async def remember(
             "confidence": request.confidence,
             # Resolved memory type (auto-parsed when not explicitly provided)
             "type": result.get("type"),
-            # "computed_confidence": trust_score["computed_confidence"],
-            # "trust_level": trust_score["trust_level"]
         }
 
     except Exception as e:

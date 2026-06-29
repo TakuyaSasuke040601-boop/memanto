@@ -106,6 +106,7 @@ ignore_missing_imports = true
 exclude = [
     "^integrations/",
     "^examples/",
+    "^memanto/app/legacy/",
 ]
 
 # Optional: Configure pytest
@@ -123,7 +124,7 @@ filterwarnings = [
 [tool.ruff]
 target-version = "py310"
 line-length = 88
-extend-exclude = ["legacy_archive"]
+extend-exclude = ["legacy_archive", "memanto/app/legacy"]
 
 [tool.ruff.lint]
 select = [

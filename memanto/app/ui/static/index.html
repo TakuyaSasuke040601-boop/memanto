@@ -3412,15 +3412,13 @@
                     m.status === 'superseded' ? '<span class="badge badge-warning">superseded</span>' :
                         `<span class="badge badge-info">${m.status || '—'}</span>`;
                 const provBadge = m.provenance ? `<span class="badge badge-accent">${m.provenance}</span>` : '—';
-                const contradicted = m.contradiction_detected ? ' <span class="badge badge-error">⚠ contradicted</span>' : '';
-                const validated = (m.validation_count && m.validation_count > 0) ? ` <span class="badge badge-success">✓×${m.validation_count}</span>` : '';
                 const mJson = attrEsc(JSON.stringify(m));
                 html += `<tr class="${expandable ? 'expandable' : ''}" onclick="toggleRow('exp-${i}')">
             <td style="color:var(--text-primary);font-weight:500">${escHtml(trunc(m.title || 'Untitled', 60))}</td>
             <td><span class="badge badge-info">${m.type || '—'}</span></td>
             <td>${m.source ? `<span class="badge badge-accent">${escHtml(m.source)}</span>` : '—'}</td>
             <td>${confBadge(m.confidence)}</td>
-            <td>${statusBadge}${contradicted}${validated}</td>
+            <td>${statusBadge}</td>
             <td>${provBadge}</td>
             <td style="white-space:nowrap">${fmtDate(m.created_at)}</td>
             <td style="font-size:11px">${escHtml(trunc(tags, 40))}</td>

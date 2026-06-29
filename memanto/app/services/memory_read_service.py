@@ -244,8 +244,7 @@ class MemoryReadService:
 
         Returns memories that were:
         1. Created before or at as_of_date
-        2. NOT superseded before as_of_date
-        3. NOT expired at as_of_date
+        2. NOT expired at as_of_date
 
         Args:
             as_of_date: ISO timestamp for point-in-time (e.g., "2025-11-01T00:00:00Z")
@@ -285,18 +284,6 @@ class MemoryReadService:
                             continue  # Already expired at as_of_date
                     except (ValueError, AttributeError):
                         pass
-
-                # Skip if superseded before as_of_date
-                if memory.get("superseded_by"):
-                    # Memory was superseded - check if supersession happened before as_of_date
-                    updated_at = memory.get("updated_at")
-                    if updated_at:
-                        try:
-                            updated_dt = parse_iso_timestamp(updated_at)
-                            if updated_dt <= as_of_dt:
-                                continue  # Already superseded at as_of_date
-                        except (ValueError, AttributeError):
-                            pass
 
                 valid_memories.append(memory)
 
@@ -763,23 +750,8 @@ class MemoryReadService:
         else:
             tags = []
 
-        # Extract provenance & trust fields
+        # Extract provenance
         provenance = get_field("provenance") or "explicit_statement"
-        validation_count = get_field("validation_count") or 0
-        contradiction_detected = get_field("contradiction_detected") or False
-        superseded_by = get_field("superseded_by")
-        supersedes = get_field("supersedes")
-        validated_at_str = get_field("validated_at")
-
-        # Parse validated_at timestamp
-        validated_at = None
-        if validated_at_str:
-            try:
-                validated_at = datetime.fromisoformat(
-                    validated_at_str.replace("Z", "+00:00")
-                )
-            except (ValueError, AttributeError):
-                pass
 
         # Parse title and content from Moorcheh document text format:
         raw_text = item.get("text", "")
@@ -834,53 +806,8 @@ class MemoryReadService:
             "scope_type": get_field("scope_type"),
             "scope_id": get_field("scope_id"),
             "score": item.get("score"),  # Search relevance score
-            # Provenance & Trust fields
+            # Provenance
             "provenance": provenance,
-            "validation_count": validation_count,
-            "contradiction_detected": contradiction_detected,
         }
-
-        # Add optional trust fields
-        if superseded_by:
-            formatted["superseded_by"] = superseded_by
-        if supersedes:
-            formatted["supersedes"] = supersedes
-        if validated_at:
-            formatted["validated_at"] = validated_at.isoformat()
-
-        # skip trust score computation reconstructs MemoryRecord and runs compute_confidence() + trust_score() per result. Skipped for speed.
-        ## Compute trust score if we have all required fields
-        # try:
-        ## Reconstruct MemoryRecord to use compute_confidence and trust_score methods
-        #     created_at_str = get_field("created_at")
-        #     created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00')) if created_at_str else datetime.utcnow()
-        #     memory_rec = MemoryRecord(
-        #         id=item.get("id"),
-        #         type=get_field("memory_type", "memory_type") or "fact",
-        #         title="", # Not stored in search results
-        #         content=item.get("text", ""),
-        #         scope_type=get_field("scope_type") or "agent",
-        #         scope_id=get_field("scope_id") or "unknown",
-        #         actor_id=get_field("actor_id") or "unknown",
-        #         source=get_field("source") or "agent",
-        #         confidence=get_field("confidence") or 0.8,
-        #         status=get_field("status") or "active",
-        #         provenance=provenance,
-        #         validation_count=validation_count,
-        #         contradiction_detected=contradiction_detected,
-        #         created_at=created_at,
-        #         validated_at=validated_at
-        #     )
-        #     if superseded_by:
-        #         memory_rec.superseded_by = superseded_by
-        #     if supersedes:
-        #         memory_rec.supersedes = supersedes
-
-        # Add computed confidence and trust score
-        #     formatted["computed_confidence"] = memory_rec.compute_confidence()
-        #     formatted["trust_score"] = memory_rec.trust_score()
-        # except Exception as e:
-        ## If computation fails, just return basic formatted item
-        #     pass
 
         return formatted

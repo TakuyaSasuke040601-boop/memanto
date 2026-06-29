@@ -121,14 +121,6 @@ class ExtractMemoriesRequest(BaseModel):
     )
 
 
-class SupersedeRequest(BaseModel):
-    """Request body for supersede endpoint"""
-
-    new_memory_id: str = Field(
-        ..., description="ID of new memory that supersedes the old one"
-    )
-
-
 class ConflictResolveRequest(BaseModel):
     """Request body for resolving a conflict"""
 
@@ -406,11 +398,6 @@ class MemoryItem(BaseModel):
     scope_id: str | None = None
     score: float | None = None
     provenance: str = "explicit_statement"
-    validation_count: int = 0
-    contradiction_detected: bool = False
-    superseded_by: str | None = None
-    supersedes: str | None = None
-    validated_at: str | None = None
     change_type: str | None = None
 
 
