@@ -267,9 +267,10 @@ async def restart_onprem_backend():
     """Bounce the on-prem moorcheh stack so it re-reads ``~/.moorcheh/config.json``.
 
     ``moorcheh down`` + ``moorcheh up`` (with embedding flags recovered from
-    state.json / config.json). Blocks for up to ~6 minutes total (5min for
+    state.json / config.json). Waits up to ~6 minutes total (5min for
     ``up``, 60s for ``/health``).
     """
+    import asyncio as _asyncio
     import subprocess
 
     import httpx as _httpx
@@ -291,8 +292,10 @@ async def restart_onprem_backend():
 
     # `moorcheh down` is best-effort: if the stack isn't running, that's fine —
     # we still want to try `up` after.
+    # Use asyncio.to_thread so subprocess.run doesn't block the event loop.
     try:
-        subprocess.run(
+        await _asyncio.to_thread(
+            subprocess.run,
             ["moorcheh", "down"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -317,7 +320,7 @@ async def restart_onprem_backend():
     if embedding_key:
         up_args.extend(["--embedding-api-key", embedding_key])
     try:
-        subprocess.run(up_args, check=True, timeout=300)
+        await _asyncio.to_thread(subprocess.run, up_args, check=True, timeout=300)
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=f"`moorcheh up` failed: {e}")
     except subprocess.TimeoutExpired:
@@ -327,14 +330,15 @@ async def restart_onprem_backend():
 
     health_url = (state.get("url") or "http://localhost:8080").rstrip("/") + "/health"
     deadline = time.time() + 60
-    while time.time() < deadline:
-        try:
-            resp = _httpx.get(health_url, timeout=2.0)
-            if resp.status_code == 200:
-                return {"status": "ok", "message": "Server restarted"}
-        except Exception:
-            pass
-        time.sleep(1.0)
+    async with _httpx.AsyncClient() as http:
+        while time.time() < deadline:
+            try:
+                resp = await http.get(health_url, timeout=2.0)
+                if resp.status_code == 200:
+                    return {"status": "ok", "message": "Server restarted"}
+            except Exception:
+                pass
+            await _asyncio.sleep(1.0)
     raise HTTPException(
         status_code=500,
         detail=f"Server did not become healthy at {health_url} within 60s.",

@@ -250,7 +250,17 @@ async def deactivate_agent(
         )
 
     try:
+        # Snapshot memory count before and after to compute memories_created.
+        # _namespace_item_counts is best-effort; falls back to 0 if unreachable.
+        counts_before = await _namespace_item_counts(_server_api_key)
+        count_before = counts_before.get(session.namespace, 0)
+
         summary = get_session_service().end_session(agent_id)
+
+        counts_after = await _namespace_item_counts(_server_api_key)
+        count_after = counts_after.get(session.namespace, 0)
+        summary.memories_created = max(0, count_after - count_before)
+
         return summary
     except SessionNotFoundError as e:
         raise map_error_to_http_exception(e)
