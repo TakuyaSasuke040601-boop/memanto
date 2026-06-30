@@ -592,6 +592,42 @@ class TestMEMANTOAPI:
         assert "ended_at" in data
 
     @pytest.mark.asyncio
+    async def test_deactivated_session_token_cannot_write_memory(
+        self, client, auth_headers, mock_moorcheh
+    ):
+        """A token from a terminated session must not authorize memory writes."""
+        await client.post(
+            "/api/v2/agents",
+            headers=auth_headers,
+            json={"agent_id": self.TEST_AGENT_ID},
+        )
+        activate_resp = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/activate", headers=auth_headers
+        )
+        token = activate_resp.json()["session_token"]
+        session_headers = {**auth_headers, "X-Session-Token": token}
+
+        deactivate_resp = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/deactivate",
+            headers=session_headers,
+        )
+        assert deactivate_resp.status_code == 200
+
+        mock_moorcheh.documents.upload.return_value = {"status": "success"}
+        response = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/remember",
+            headers=session_headers,
+            params={
+                "memory_type": "fact",
+                "title": "Should not store",
+            },
+            json={"content": "This token was terminated."},
+        )
+
+        assert response.status_code == 401
+        mock_moorcheh.documents.upload.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_global_status(self, client, auth_headers):
         """Test GET /api/v2/status returns active session info without auth params"""
         await client.post(
@@ -1099,6 +1135,64 @@ class TestMEMANTOAPI:
 
         assert response.status_code == 400
         mock_client.generate_conflict_report.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_conflicts_resolve_rejects_invalid_action(self, client, auth_headers):
+        """Invalid conflict actions should fail validation before business logic."""
+        await client.post(
+            "/api/v2/agents",
+            headers=auth_headers,
+            json={"agent_id": self.TEST_AGENT_ID},
+        )
+        activate_resp = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/activate", headers=auth_headers
+        )
+        token = activate_resp.json()["session_token"]
+        headers = {**auth_headers, "X-Session-Token": token}
+
+        with patch("memanto.app.routes.memory.DirectClient") as mock_client_cls:
+            response = await client.post(
+                f"/api/v2/agents/{self.TEST_AGENT_ID}/conflicts/resolve",
+                headers=headers,
+                json={
+                    "date": "2026-05-08",
+                    "conflict_index": 0,
+                    "action": "delete_everything",
+                },
+            )
+
+        assert response.status_code == 422
+        mock_client_cls.return_value.resolve_conflict.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_conflicts_resolve_requires_manual_content(
+        self, client, auth_headers
+    ):
+        """Manual conflict resolution needs replacement content."""
+        await client.post(
+            "/api/v2/agents",
+            headers=auth_headers,
+            json={"agent_id": self.TEST_AGENT_ID},
+        )
+        activate_resp = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/activate", headers=auth_headers
+        )
+        token = activate_resp.json()["session_token"]
+        headers = {**auth_headers, "X-Session-Token": token}
+
+        with patch("memanto.app.routes.memory.DirectClient") as mock_client_cls:
+            response = await client.post(
+                f"/api/v2/agents/{self.TEST_AGENT_ID}/conflicts/resolve",
+                headers=headers,
+                json={
+                    "date": "2026-05-08",
+                    "conflict_index": 0,
+                    "action": "manual",
+                },
+            )
+
+        assert response.status_code == 422
+        mock_client_cls.return_value.resolve_conflict.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_daily_summary_api_ignores_client_output_path(
