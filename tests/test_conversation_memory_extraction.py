@@ -84,7 +84,7 @@ def test_extract_omits_unset_active_ai_model(monkeypatch):
     """On-prem fallback should let answer.generate use its configured model."""
     from memanto.app.services import conversation_memory_extraction_service as module
 
-    monkeypatch.setattr(module, "get_active_llm_model", lambda _: None, raising=False)
+    monkeypatch.setattr(module, "get_active_llm_model", lambda _: None)
     client = FakeClient(
         '[{"type":"fact","title":"Test","content":"Use pytest.","confidence":0.9}]'
     )
