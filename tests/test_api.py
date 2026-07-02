@@ -1038,6 +1038,37 @@ class TestMEMANTOAPI:
             assert len(data["memories"]) == 10
 
     @pytest.mark.asyncio
+    async def test_temporal_recall_rejects_non_positive_config_limit(
+        self, client, auth_headers, mock_moorcheh
+    ):
+        """Config-derived temporal limits must enforce the same lower bound."""
+        await client.post(
+            "/api/v2/agents",
+            headers=auth_headers,
+            json={"agent_id": self.TEST_AGENT_ID},
+        )
+        activate_resp = await client.post(
+            f"/api/v2/agents/{self.TEST_AGENT_ID}/activate", headers=auth_headers
+        )
+        token = activate_resp.json()["session_token"]
+        headers = {**auth_headers, "X-Session-Token": token}
+
+        with patch("memanto.app.routes.memory._config_manager") as mock_config:
+            mock_config.get_recall_config.return_value = {
+                "limit": 0,
+                "min_similarity": 0.0,
+            }
+            response = await client.post(
+                f"/api/v2/agents/{self.TEST_AGENT_ID}/recall/recent",
+                headers=headers,
+                json={},
+            )
+
+        assert response.status_code == 400
+        assert "limit must be >= 1" in str(response.json()["detail"])
+        mock_moorcheh.documents.fetch_text_data.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_recall_recent_api(self, client, auth_headers, mock_moorcheh):
         """Test recall/recent returns newest memories sorted by created_at"""
         await client.post(
