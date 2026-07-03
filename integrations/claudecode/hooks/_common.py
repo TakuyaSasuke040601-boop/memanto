@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+from collections import deque
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -168,33 +169,31 @@ def _read_transcript_full(
     if not path.exists():
         return None, ""
 
+    pieces: deque[str] = deque(maxlen=max(0, int(max_messages)))
+    skill: str | None = None
     try:
         with path.open(encoding="utf-8") as fh:
-            lines = fh.readlines()
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entry = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                role, text = _extract_role_text(entry)
+                if not text:
+                    continue
+                # First skill mention wins — typically the opening user prompt.
+                if skill is None:
+                    found = detect_skill(text)
+                    if found:
+                        skill = found
+                pieces.append(f"{role}: {text}" if role else text)
     except Exception:
         return None, ""
 
-    pieces: list[str] = []
-    skill: str | None = None
-    for line in lines:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            entry = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        role, text = _extract_role_text(entry)
-        if not text:
-            continue
-        # First skill mention wins — typically the opening user prompt.
-        if skill is None:
-            found = detect_skill(text)
-            if found:
-                skill = found
-        pieces.append(f"{role}: {text}" if role else text)
-
-    rendered = "\n".join(pieces[-max_messages:])
+    rendered = "\n".join(pieces)
     return skill, rendered[-max_chars:]
 
 
