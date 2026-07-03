@@ -17,6 +17,7 @@ Input fields follow the official Claude Code hooks reference: common fields are
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import sys
@@ -28,6 +29,8 @@ from typing import Any
 # Make the sibling ``claudecode_memanto`` package importable whether or not the
 # example has been pip-installed.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+logger = logging.getLogger(__name__)
 
 
 def run(main: Callable[[], int]) -> None:
@@ -191,6 +194,7 @@ def _read_transcript_full(
                         skill = found
                 pieces.append(f"{role}: {text}" if role else text)
     except Exception:
+        logger.debug("Failed to read Claude Code transcript", exc_info=True)
         return None, ""
 
     rendered = "\n".join(pieces)
