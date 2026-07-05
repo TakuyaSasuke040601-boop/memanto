@@ -502,6 +502,47 @@ class TestMEMANTOCLI:
         call_kwargs = mock_all_clients.recall_recent.call_args.kwargs
         assert call_kwargs["tags"] == ["release", "backend"]
 
+    def test_recall_as_of_forwards_tags(self, mock_all_clients):
+        """`memanto recall --as-of --tags` forwards tag filters."""
+        mock_all_clients.recall_as_of.return_value = {"memories": [], "count": 0}
+
+        result = runner.invoke(
+            app,
+            [
+                "recall",
+                "--as-of",
+                "2025-06-02T00:00:00Z",
+                "--tags",
+                "release, backend",
+            ],
+        )
+
+        assert result.exit_code == 0
+        call_kwargs = mock_all_clients.recall_as_of.call_args.kwargs
+        assert call_kwargs["tags"] == ["release", "backend"]
+
+    def test_recall_changed_since_forwards_tags(self, mock_all_clients):
+        """`memanto recall --changed-since --tags` forwards tag filters."""
+        mock_all_clients.recall_changed_since.return_value = {
+            "memories": [],
+            "count": 0,
+        }
+
+        result = runner.invoke(
+            app,
+            [
+                "recall",
+                "--changed-since",
+                "2025-06-02T00:00:00Z",
+                "--tags",
+                "release, backend",
+            ],
+        )
+
+        assert result.exit_code == 0
+        call_kwargs = mock_all_clients.recall_changed_since.call_args.kwargs
+        assert call_kwargs["tags"] == ["release", "backend"]
+
     def test_recall_recent_rejects_query(self, mock_all_clients):
         """`--recent` is chronological; passing a query alongside is an error."""
         result = runner.invoke(app, ["recall", "some query", "--recent"])
