@@ -551,6 +551,38 @@ class TestMEMANTOAPI:
         mock_moorcheh.namespaces.delete.assert_not_called()
 
     @pytest.mark.asyncio
+    async def test_delete_active_agent_clears_session_state(
+        self, client, auth_headers, mock_moorcheh
+    ):
+        """Deleting the active agent invalidates its local session state."""
+        agent_id = "delete-active"
+        await client.post(
+            "/api/v2/agents", headers=auth_headers, json={"agent_id": agent_id}
+        )
+        activate_resp = await client.post(
+            f"/api/v2/agents/{agent_id}/activate", headers=auth_headers
+        )
+        token = activate_resp.json()["session_token"]
+
+        response = await client.delete(
+            f"/api/v2/agents/{agent_id}", headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        status_resp = await client.get("/api/v2/status")
+        assert status_resp.status_code == 404
+
+        stale_headers = {**auth_headers, "X-Session-Token": token}
+        stale_write = await client.post(
+            f"/api/v2/agents/{agent_id}/remember",
+            headers=stale_headers,
+            json={"content": "This should not be accepted after agent deletion"},
+        )
+        assert stale_write.status_code == 404
+        assert stale_write.json()["detail"]["error"] == "SessionNotFound"
+        mock_moorcheh.documents.upload.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_delete_agent_with_backup_delete(
         self, client, auth_headers, mock_moorcheh
     ):

@@ -169,6 +169,7 @@ async def delete_agent(
                 pass
 
         agent_service.delete_agent(agent_id)
+        get_session_service().delete_session(agent_id)
         return {
             "message": (
                 f"Agent '{agent_id}' successfully deleted"

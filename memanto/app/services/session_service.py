@@ -509,7 +509,7 @@ class SessionService:
         active_link = self.sessions_dir / "active"
 
         # Remove existing active link
-        if active_link.exists():
+        if active_link.exists() or active_link.is_symlink():
             active_link.unlink()
 
         # Create new active marker
@@ -524,12 +524,38 @@ class SessionService:
     def _clear_active_session(self) -> None:
         """Clear active session marker"""
         active_link = self.sessions_dir / "active"
-        if active_link.exists():
+        if active_link.exists() or active_link.is_symlink():
             active_link.unlink()
 
     def clear_active_session(self) -> None:
         """Public alias: clear the active-session marker without ending the session."""
         self._clear_active_session()
+
+    def delete_session(self, agent_id: str) -> bool:
+        """
+        Remove persisted session state for an agent.
+
+        Used when an agent is deleted: the agent metadata is gone, so a saved
+        session for that agent must not remain usable through X-Session-Token.
+        """
+        active_link = self.sessions_dir / "active"
+        active_agent_id: str | None = None
+
+        if active_link.is_symlink():
+            active_agent_id = active_link.readlink().stem
+        elif active_link.exists():
+            with open(active_link) as f:
+                active_agent_id = f.read().strip()
+
+        session_file = self.sessions_dir / f"{agent_id}.json"
+        deleted = session_file.exists()
+        if deleted:
+            session_file.unlink()
+
+        if active_agent_id == agent_id:
+            self._clear_active_session()
+
+        return deleted
 
     def list_sessions(self) -> list[Session]:
         """
