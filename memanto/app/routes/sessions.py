@@ -7,7 +7,7 @@ Replaces tenant_id with Moorcheh API key-based authentication.
 
 import asyncio
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 
 from memanto.app.clients import moorcheh as moorcheh_clients
 from memanto.app.config import settings
@@ -192,6 +192,7 @@ async def delete_agent(
 @router.post("/agents/{agent_id}/activate", response_model=Session)
 async def activate_agent(
     agent_id: str,
+    request: Request,
     response: Response,
     moorcheh_api_key: str = Depends(verify_moorcheh_api_key),
 ):
@@ -221,7 +222,7 @@ async def activate_agent(
             pattern=agent.pattern,
             duration_hours=duration_hours,
         )
-        set_session_cookie(response, session.session_token)
+        set_session_cookie(response, session.session_token, request)
 
         # Update agent stats
         agent_service.update_agent_stats(

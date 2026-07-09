@@ -117,7 +117,9 @@ def _build_ui_direct_client() -> DirectClient | None:
 
 
 @router.get("/api/ui/config")
-async def get_ui_config(response: Response, _: None = Depends(_require_local)):
+async def get_ui_config(
+    request: Request, response: Response, _: None = Depends(_require_local)
+):
     """
     Get current MEMANTO configuration for the Web UI.
 
@@ -135,7 +137,7 @@ async def get_ui_config(response: Response, _: None = Depends(_require_local)):
     backend = _config_manager.get_backend().value
     onprem_cfg = _config_manager.get_onprem_config()
     if active_session_token:
-        set_session_cookie(response, active_session_token)
+        set_session_cookie(response, active_session_token, request)
     else:
         clear_session_cookie(response)
 

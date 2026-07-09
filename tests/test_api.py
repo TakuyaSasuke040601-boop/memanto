@@ -1927,6 +1927,29 @@ class TestCWE200ApiKeyLeak:
         assert f"memanto_session_token={token}" in cookie
         assert "HttpOnly" in cookie
         assert "SameSite=strict" in cookie
+        # MEMANTO defaults to plain HTTP (0.0.0.0, no built-in TLS); a
+        # hardcoded Secure=True would stop browsers from ever sending the
+        # cookie back in that default deployment.
+        assert "Secure" not in cookie
+
+    @pytest.mark.asyncio
+    async def test_activate_marks_cookie_secure_over_https(self, auth_headers):
+        """When the request itself arrives over HTTPS, the cookie must be Secure."""
+        transport = ASGITransport(app=app)
+        async with AsyncClient(
+            transport=transport, base_url="https://test"
+        ) as https_client:
+            await https_client.post(
+                "/api/v2/agents",
+                headers=auth_headers,
+                json={"agent_id": self.TEST_AGENT_ID},
+            )
+            resp = await https_client.post(
+                f"/api/v2/agents/{self.TEST_AGENT_ID}/activate", headers=auth_headers
+            )
+            assert resp.status_code == 200
+            cookie = resp.headers.get("set-cookie", "")
+            assert "Secure" in cookie
 
     @pytest.mark.asyncio
     async def test_memory_routes_accept_session_cookie(

@@ -637,7 +637,7 @@ async def upload_file(
                                 "max_bytes": _MAX_UPLOAD_BYTES,
                             },
                         )
-                    tmp.write(chunk)
+                    await asyncio.to_thread(tmp.write, chunk)
             result = await asyncio.to_thread(
                 client.documents.upload_file, namespace, tmp_path
             )

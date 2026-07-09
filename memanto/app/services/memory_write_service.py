@@ -2,7 +2,7 @@
 Memory Write Service
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -12,12 +12,7 @@ from memanto.app.core import MemoryRecord
 from memanto.app.services.memory_parsing_service import MemoryParsingService
 from memanto.app.utils.errors import MemoryError
 from memanto.app.utils.ids import generate_memory_id
-
-
-def _as_utc_naive(value: datetime) -> datetime:
-    if value.tzinfo is None:
-        return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
+from memanto.app.utils.temporal_helpers import as_utc_naive
 
 
 class MemoryWriteService:
@@ -28,6 +23,7 @@ class MemoryWriteService:
 
         self.client = moorcheh_client
         self._parser = MemoryParsingService()
+        self._namespace_service = None
 
     @property
     def namespace_service(self):
@@ -42,8 +38,8 @@ class MemoryWriteService:
     def _apply_timestamps(self, memory: MemoryRecord, now: datetime) -> None:
         """Apply server timestamps while preserving imported source chronology."""
         if memory.provenance == "imported":
-            memory.created_at = _as_utc_naive(memory.created_at)
-            memory.updated_at = _as_utc_naive(memory.updated_at)
+            memory.created_at = as_utc_naive(memory.created_at)
+            memory.updated_at = as_utc_naive(memory.updated_at)
             return
         memory.created_at = now
         memory.updated_at = now

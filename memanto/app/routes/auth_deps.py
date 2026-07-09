@@ -4,7 +4,7 @@ Authentication Dependencies for V2 API
 Shared authentication utilities to avoid circular imports.
 """
 
-from fastapi import Cookie, Header, HTTPException, Response
+from fastapi import Cookie, Header, HTTPException, Request, Response
 
 from memanto.app.models.session import Session
 from memanto.app.services.session_service import get_session_service
@@ -18,13 +18,22 @@ from memanto.app.utils.errors import (
 SESSION_COOKIE_NAME = "memanto_session_token"
 
 
-def set_session_cookie(response: Response, session_token: str) -> None:
-    """Store the browser UI session token outside JavaScript-readable state."""
+def set_session_cookie(
+    response: Response, session_token: str, request: Request
+) -> None:
+    """Store the browser UI session token outside JavaScript-readable state.
+
+    MEMANTO defaults to binding 0.0.0.0 with no built-in TLS (see docker-compose.yml
+    and Settings.HOST), so a hardcoded Secure=True would silently stop browsers from
+    ever sending the cookie back over the plain-HTTP deployment this ships with by
+    default. Mark it Secure only when the current request actually arrived over HTTPS.
+    """
     response.set_cookie(
         SESSION_COOKIE_NAME,
         session_token,
         httponly=True,
         samesite="strict",
+        secure=request.url.scheme == "https",
         path="/",
     )
 
@@ -74,6 +83,7 @@ def verify_moorcheh_api_key() -> str:
 
 
 def get_current_session(
+    request: Request,
     response: Response,
     x_session_token: str | None = Header(None),
     session_cookie: str | None = Cookie(None, alias=SESSION_COOKIE_NAME),
@@ -120,7 +130,7 @@ def get_current_session(
             # without this the cookie goes stale and the very next request
             # fails signature/session_id validation.
             if session_cookie:
-                set_session_cookie(response, renewed.session_token)
+                set_session_cookie(response, renewed.session_token, request)
 
         return session
 
