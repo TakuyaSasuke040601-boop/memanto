@@ -15,7 +15,6 @@ from memanto.app.constants import VALID_MEMORY_TYPES
 from memanto.app.core import agent_namespace
 from memanto.app.utils.errors import MemoryError
 
-
 _FILTER_TOKEN_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
 
 
