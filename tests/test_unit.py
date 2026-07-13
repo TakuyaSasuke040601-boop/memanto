@@ -549,6 +549,7 @@ class TestMemoryWriteServiceBatch:
 
         assert result["successful"] == 0
         assert result["failed"] == 1
+        assert result["results"][0]["status"] == "FAILED"
 
 
 class TestForgetEndToEnd:

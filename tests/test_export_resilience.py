@@ -15,9 +15,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import memanto.cli.client.direct_client as direct_mod
+import memanto.cli.client.sdk_client as sdk_mod
 from memanto.app.services.memory_export_service import MEMORY_TYPE_ORDER
-from memanto.cli.client.direct_client import DirectClient
-from memanto.cli.client.sdk_client import SdkClient
+
+DirectClient = direct_mod.DirectClient
+SdkClient = sdk_mod.SdkClient
 
 
 def _build_client(client_cls, monkeypatch, tmp_path):
@@ -28,9 +31,6 @@ def _build_client(client_cls, monkeypatch, tmp_path):
     ``sync_memory_to_project``'s cache lookup end up at the same
     ``tmp_path/.memanto/exports/`` regardless of which module reads
     ``Path.home()``."""
-    import memanto.cli.client.direct_client as direct_mod
-    import memanto.cli.client.sdk_client as sdk_mod
-
     module = direct_mod if client_cls is DirectClient else sdk_mod
     monkeypatch.setattr(module.Path, "home", classmethod(lambda cls: tmp_path))
 

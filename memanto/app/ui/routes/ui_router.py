@@ -335,7 +335,6 @@ _restart_lock: "asyncio.Lock | None" = None
 def _get_restart_lock() -> "asyncio.Lock":
     """Return (creating lazily) the module-level restart serialisation lock."""
     global _restart_lock
-    import asyncio
 
     if _restart_lock is None:
         _restart_lock = asyncio.Lock()
@@ -375,6 +374,9 @@ async def restart_onprem_backend(_: None = Depends(_require_local)):
             try:
                 await inner
             except Exception:
+                # Intentionally suppress secondary errors: the request was
+                # cancelled and we must re-raise CancelledError after waiting
+                # for the restart task to settle so the lock is released.
                 pass
             raise
 
@@ -443,6 +445,8 @@ async def _do_restart_onprem_backend(_asyncio, subprocess, _httpx):
                 if resp.status_code == 200:
                     return {"status": "ok", "message": "Server restarted"}
             except Exception:
+                # During restart warm-up, transient network/connection
+                # failures are expected; keep retrying until the deadline.
                 pass
             await _asyncio.sleep(1.0)
     raise HTTPException(
