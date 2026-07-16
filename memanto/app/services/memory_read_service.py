@@ -29,6 +29,15 @@ def _validate_filter_token(value: Any, field_name: str) -> str:
     return token
 
 
+# Moorcheh caps a single similarity search at 100 rows.
+MOORCHEH_MAX_TOP_K = 100
+# When post-retrieval filters (temporal / confidence) are active we widen
+# the fetched candidate pool to this size (bounded by MOORCHEH_MAX_TOP_K) so
+# that filtering does not discard relevant rows that rank outside the
+# caller's page. See MemoryReadService.search_memories.
+POST_FILTER_CANDIDATE_POOL = 100
+
+
 class MemoryReadService:
     """Read, search, and format memories from the configured Moorcheh backend."""
 
@@ -119,7 +128,27 @@ class MemoryReadService:
             # Build query parameters
             # Request extra results to handle offset (Moorcheh doesn't have native offset support)
             requested_limit = limit + offset
-            top_k = min(requested_limit, 100)  # Moorcheh max is 100
+
+            # Temporal, confidence and TTL constraints are enforced as
+            # post-processing on the rows the backend returns (see below), so
+            # the candidate pool we fetch must be large enough that those
+            # filters do not silently drop relevant rows. If we only fetched
+            # `limit + offset` rows, a date-scoped or confidence-scoped query
+            # would filter *within the top-N most-similar rows*, causing
+            # in-window memories that rank just outside the top-N to be lost
+            # entirely (timeline amnesia / poor recall). When such a filter is
+            # active, over-fetch up to Moorcheh's hard cap so the filter runs
+            # over a much wider candidate set.
+            post_retrieval_filter_active = bool(
+                created_after or created_before or min_confidence
+            )
+            if post_retrieval_filter_active:
+                top_k = min(
+                    max(requested_limit, POST_FILTER_CANDIDATE_POOL),
+                    MOORCHEH_MAX_TOP_K,
+                )
+            else:
+                top_k = min(requested_limit, MOORCHEH_MAX_TOP_K)  # Moorcheh max is 100
 
             # Perform search with server-side filtering.
             # Only enable kiosk_mode when the caller actually set a positive
