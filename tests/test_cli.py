@@ -7,8 +7,10 @@ Uses extensive mocking to intercept API calls across all command modules.
 """
 
 import json
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
+import jwt
 import pytest
 from typer.testing import CliRunner
 
@@ -759,6 +761,24 @@ class TestMEMANTOCLI:
         assert result.exit_code == 0
         assert "Active Agent" in result.stdout
         assert "Session Token" in result.stdout
+
+    def test_session_info_handles_timezone_aware_token(self, mock_all_clients):
+        """Test 'memanto session info' displays aware JWT expirations."""
+        from memanto.cli.commands import session as session_commands
+
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+        token = jwt.encode({"expires_at": expires_at}, key="", algorithm="none")
+        session_commands.config_manager.get_active_session.return_value = (
+            "test-agent",
+            token,
+        )
+
+        result = runner.invoke(app, ["session", "info"])
+
+        assert result.exit_code == 0
+        assert "Active" in result.stdout
+        assert "Time Remaining" in result.stdout
+        assert "Unknown" not in result.stdout
 
     def test_agent_deactivate(self, mock_all_clients):
         """Test 'memanto agent deactivate'"""
