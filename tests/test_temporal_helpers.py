@@ -4,6 +4,7 @@ from memanto.app.routes.memory import RecallRequest
 from memanto.app.services.memory_read_service import MemoryReadService
 from memanto.app.utils.temporal_helpers import (
     build_temporal_query,
+    parse_as_of_timestamp,
     parse_iso_timestamp,
     parse_relative_time,
 )
@@ -58,3 +59,16 @@ def test_temporal_query_payload_is_accepted_by_recall_request_model():
 
     assert payload["created_after"] is not None
     assert request.created_after is not None
+
+
+def test_parse_as_of_timestamp_treats_date_only_as_end_of_day():
+    parsed = parse_as_of_timestamp("2026-01-15")
+
+    assert parsed.tzinfo == timezone.utc
+    assert parsed.isoformat() == "2026-01-15T23:59:59.999999+00:00"
+
+
+def test_parse_as_of_timestamp_preserves_explicit_time():
+    parsed = parse_as_of_timestamp("2026-01-15T13:30:00Z")
+
+    assert parsed.isoformat() == "2026-01-15T13:30:00+00:00"

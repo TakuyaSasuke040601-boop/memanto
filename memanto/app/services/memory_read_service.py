@@ -226,9 +226,12 @@ class MemoryReadService:
             limit: Max results
         """
         try:
-            from memanto.app.utils.temporal_helpers import parse_iso_timestamp
+            from memanto.app.utils.temporal_helpers import (
+                parse_as_of_timestamp,
+                parse_iso_timestamp,
+            )
 
-            as_of_dt = parse_iso_timestamp(as_of_date)
+            as_of_dt = parse_as_of_timestamp(as_of_date)
 
             namespaces = self._get_search_namespaces(agent_id)
             if not namespaces:
@@ -241,7 +244,7 @@ class MemoryReadService:
 
             all_memories = self._fetch_all_memories(namespaces, type=type, tags=tags)
             all_memories = self._apply_temporal_filter(
-                all_memories, created_before=as_of_date
+                all_memories, created_before=as_of_dt.isoformat()
             )
 
             # Filter to only include memories valid at as_of_date

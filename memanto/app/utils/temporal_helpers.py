@@ -4,7 +4,7 @@ Temporal Query Helpers
 Utility functions to make temporal queries easier for agents.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any
 
 
@@ -34,6 +34,26 @@ def parse_iso_timestamp(ts_str: str) -> datetime:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+def parse_as_of_timestamp(ts_str: str) -> datetime:
+    """Parse a point-in-time cutoff, treating a date as the end of that day.
+
+    ``recall_as_of`` is exposed through REST, the Python clients, CLI, and MCP.
+    The REST request model already documents date-only values as end-of-day,
+    while the lower-level clients pass strings directly to the read service.
+    Normalizing at the service boundary keeps every caller consistent without
+    changing the meaning of full ISO timestamps.
+    """
+    if len(ts_str) == 10 and ts_str[4] == "-" and ts_str[7] == "-":
+        try:
+            return datetime.combine(
+                date.fromisoformat(ts_str), time.max, tzinfo=timezone.utc
+            )
+        except ValueError:
+            pass
+
+    return parse_iso_timestamp(ts_str)
 
 
 def format_local_time(ts) -> str:
