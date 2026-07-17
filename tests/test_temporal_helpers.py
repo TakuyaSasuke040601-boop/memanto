@@ -1,5 +1,7 @@
 from datetime import timezone
 
+import pytest
+
 from memanto.app.routes.memory import RecallRequest
 from memanto.app.services.memory_read_service import MemoryReadService
 from memanto.app.utils.temporal_helpers import (
@@ -59,6 +61,16 @@ def test_temporal_query_payload_is_accepted_by_recall_request_model():
 
     assert payload["created_after"] is not None
     assert request.created_after is not None
+
+
+def test_build_temporal_query_rejects_invalid_relative_time():
+    with pytest.raises(ValueError, match="Invalid relative_time"):
+        build_temporal_query(
+            "http://localhost:8000",
+            "agent-1",
+            "deployment notes",
+            relative_time="last 0 days",
+        )
 
 
 def test_parse_as_of_timestamp_treats_date_only_as_end_of_day():

@@ -129,26 +129,21 @@ class MemoryReadService:
             # Request extra results to handle offset (Moorcheh doesn't have native offset support)
             requested_limit = limit + offset
 
-            # Temporal, confidence and TTL constraints are enforced as
+            # Temporal, confidence, and TTL constraints are all enforced as
             # post-processing on the rows the backend returns (see below), so
             # the candidate pool we fetch must be large enough that those
             # filters do not silently drop relevant rows. If we only fetched
-            # `limit + offset` rows, a date-scoped or confidence-scoped query
-            # would filter *within the top-N most-similar rows*, causing
-            # in-window memories that rank just outside the top-N to be lost
-            # entirely (timeline amnesia / poor recall). When such a filter is
-            # active, over-fetch up to Moorcheh's hard cap so the filter runs
-            # over a much wider candidate set.
-            post_retrieval_filter_active = bool(
-                created_after or created_before or min_confidence
+            # `limit + offset` rows, a date-scoped, confidence-scoped, or
+            # TTL-expired-heavy query would filter *within the top-N
+            # most-similar rows*, causing in-window memories that rank just
+            # outside the top-N to be lost entirely (timeline amnesia / poor
+            # recall). TTL enforcement (_filter_expired_memories) always runs
+            # below regardless of caller input, so we always over-fetch up to
+            # Moorcheh's hard cap rather than only when a temporal/confidence
+            # filter is explicitly requested.
+            top_k = min(
+                max(requested_limit, POST_FILTER_CANDIDATE_POOL), MOORCHEH_MAX_TOP_K
             )
-            if post_retrieval_filter_active:
-                top_k = min(
-                    max(requested_limit, POST_FILTER_CANDIDATE_POOL),
-                    MOORCHEH_MAX_TOP_K,
-                )
-            else:
-                top_k = min(requested_limit, MOORCHEH_MAX_TOP_K)  # Moorcheh max is 100
 
             # Perform search with server-side filtering.
             # Only enable kiosk_mode when the caller actually set a positive
@@ -344,7 +339,10 @@ class MemoryReadService:
             # Sort by the timestamp that made the memory qualify.
             def _changed_sort_key(m: dict[str, Any]) -> datetime:
                 """Return a stable aware timestamp for changed-memory ordering."""
-                raw = m.get("updated_at") or m.get("created_at")
+                if m.get("change_type") == "created":
+                    raw = m.get("created_at") or m.get("updated_at")
+                else:
+                    raw = m.get("updated_at") or m.get("created_at")
                 if not raw:
                     return datetime.min.replace(tzinfo=timezone.utc)
                 try:

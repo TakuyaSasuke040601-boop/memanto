@@ -242,7 +242,10 @@ def build_temporal_query(
     """
     # Parse relative time if provided and no absolute time given
     if relative_time and not created_after:
-        created_after = parse_relative_time(relative_time)
+        parsed_relative_time = parse_relative_time(relative_time)
+        if parsed_relative_time is None:
+            raise ValueError(f"Invalid relative_time: {relative_time!r}")
+        created_after = parsed_relative_time
 
     body: dict[str, Any] = {"query": query, "limit": limit}
     if created_after:

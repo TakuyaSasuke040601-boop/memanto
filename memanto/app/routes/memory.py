@@ -87,18 +87,19 @@ class RecallRequest(BaseModel):
         default=None, ge=0.0, le=1.0, description="Minimum similarity score (0-1)"
     )
     type: list[str] | None = Field(default=None, description="Memory type filters")
-    created_after: datetime | None = Field(
+    tags: list[str] | None = Field(default=None, description="Tag filters")
+    created_after: datetime | date | None = Field(
         default=None,
         description=(
             "Include only memories created at or after this timestamp. "
-            "Date-only values use the start of that day."
+            "Date-only values (YYYY-MM-DD) use the start of that day."
         ),
     )
-    created_before: datetime | None = Field(
+    created_before: datetime | date | None = Field(
         default=None,
         description=(
             "Include only memories created at or before this timestamp. "
-            "Date-only values use the end of that day."
+            "Date-only values (YYYY-MM-DD) use the end of that day."
         ),
     )
 
@@ -831,6 +832,7 @@ async def recall(
             query=request.query,
             agent_id=agent_id,
             type=request.type,
+            tags=request.tags,
             min_similarity_score=min_similarity,
             created_after=request.created_after.isoformat()
             if request.created_after

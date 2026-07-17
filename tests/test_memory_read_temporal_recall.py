@@ -87,11 +87,14 @@ def test_post_retrieval_filter_widens_candidate_pool():
     assert service.client.similarity_search.last_kwargs["top_k"] == MOORCHEH_MAX_TOP_K
 
 
-def test_unfiltered_query_keeps_narrow_fetch():
-    """Without post-retrieval filters we must not over-fetch: top_k stays at
-    the requested page size so ordinary searches are unaffected."""
+def test_unfiltered_query_still_widens_candidate_pool():
+    """TTL enforcement (_filter_expired_memories) always runs as
+    post-processing regardless of caller-supplied filters, so even a plain
+    query without an explicit temporal/confidence filter must still widen the
+    candidate pool - otherwise expired top-ranked rows could crowd out valid
+    lower-ranked memories the same way an unfiltered temporal window would."""
     service, _ = _make_service()
 
     service.search_memories(query="Apollo", agent_id="agent-1", limit=5)
 
-    assert service.client.similarity_search.last_kwargs["top_k"] == 5
+    assert service.client.similarity_search.last_kwargs["top_k"] == MOORCHEH_MAX_TOP_K
