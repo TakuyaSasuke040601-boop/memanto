@@ -177,7 +177,7 @@ class MemantoStore(BaseStore):
             limit=self._MEMANTO_RECALL_CAP,
         )
         for mem in result.get("memories", []):
-            tags = mem.get("tags") or []
+            tags = self._normalize_tags(mem.get("tags"))
             if all(t in tags for t in required_tags):
                 return self._memory_to_item(mem, op.namespace, op.key)
 
@@ -194,7 +194,7 @@ class MemantoStore(BaseStore):
             return None
 
         for mem in result.get("memories", []):
-            tags = mem.get("tags") or []
+            tags = self._normalize_tags(mem.get("tags"))
             if all(t in tags for t in required_tags):
                 return self._memory_to_item(mem, op.namespace, op.key)
         return None
@@ -239,12 +239,7 @@ class MemantoStore(BaseStore):
         confidence = float(value.pop("confidence", 0.8))
         confidence = max(0.0, min(1.0, confidence))
 
-        raw_tags = value.pop("tags", []) or []
-        if isinstance(raw_tags, str):
-            raw_tags = [t.strip() for t in raw_tags.split(",") if t.strip()]
-        elif not isinstance(raw_tags, (list, tuple, set)):
-            raw_tags = [str(raw_tags)]
-
+        raw_tags = self._normalize_tags(value.pop("tags", None))
         user_tags = [
             str(t) for t in raw_tags if not str(t).startswith(_RESERVED_PREFIX)
         ]
@@ -290,7 +285,7 @@ class MemantoStore(BaseStore):
             type_filter = [type_filter]
         # SearchOp uses "min_confidence"; SdkClient.recall() uses "min_similarity"
         min_similarity = filter_dict.get("min_confidence")
-        extra_tags = list(filter_dict.get("tags", []) or [])
+        extra_tags = self._normalize_tags(filter_dict.get("tags"))
 
         cache_key = (
             op.namespace_prefix,
@@ -346,7 +341,7 @@ class MemantoStore(BaseStore):
 
         out: list[SearchItem] = []
         for mem in result.get("memories", []):
-            tags = mem.get("tags") or []
+            tags = self._normalize_tags(mem.get("tags"))
             if extra_tags and not all(t in tags for t in extra_tags):
                 continue
             key = self._tags_to_key(tags) or mem.get("id", "")
@@ -423,6 +418,16 @@ class MemantoStore(BaseStore):
         return None
 
     @staticmethod
+    def _normalize_tags(raw: Any) -> list[str]:
+        if raw is None:
+            return []
+        if isinstance(raw, str):
+            return [tag.strip() for tag in raw.split(",") if tag.strip()]
+        if isinstance(raw, (list, tuple, set)):
+            return [str(tag).strip() for tag in raw if str(tag).strip()]
+        return [str(raw).strip()] if str(raw).strip() else []
+
+    @staticmethod
     def _stringify(value: dict[str, Any]) -> str:
         if not value:
             return "(empty)"
@@ -464,7 +469,7 @@ class MemantoStore(BaseStore):
 
     @staticmethod
     def _memory_to_value(mem: dict[str, Any]) -> dict[str, Any]:
-        tags = mem.get("tags", []) or []
+        tags = MemantoStore._normalize_tags(mem.get("tags"))
         user_tags = [t for t in tags if not t.startswith(_RESERVED_PREFIX)]
         return {
             "kind": mem.get("type", "fact"),
