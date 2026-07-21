@@ -792,30 +792,25 @@ class MemoryReadService:
         content = raw_text
 
         if raw_text:
-            lines = raw_text.split("\n\n", 2)  # Split into at most 3 parts
-            first_line = lines[0] if lines else ""
-
-            # Extract title: strip the "[TYPE] " prefix from first line
+            # Wire format (see MemoryRecord.to_moorcheh_document):
+            #   "[TYPE] {title}\n\n{content}"  with an optional trailing
+            #   "\n\nTags: {tags}" block appended only when the record has tags.
+            # Split off the title on the FIRST blank line; everything after it is
+            # the content, which may itself contain blank lines.
+            first_line, _, rest = raw_text.partition("\n\n")
 
             title_match = re.match(r"^\[.*?\]\s*(.*)$", first_line)
-            if title_match:
-                title = title_match.group(1).strip()
-                # Content is the rest after the first line (skip tags section)
-                if len(lines) > 1:
-                    # Check if last part is tags
-                    remaining = lines[1:]
-                    content_parts = []
-                    for part in remaining:
-                        if part.startswith("Tags: "):
-                            continue
-                        content_parts.append(part)
-                    content = "\n\n".join(content_parts) if content_parts else ""
-                else:
-                    content = ""
+            title = title_match.group(1).strip() if title_match else first_line.strip()
+
+            # Strip ONLY a genuine trailing tags block, and only when this record
+            # actually has tags (the serializer appends the block iff tags exist).
+            # Prevents (a) wiping content that merely begins with "Tags: " and
+            # (b) leaking the tags line into multi-paragraph content.
+            body, sep, last = rest.rpartition("\n\n")
+            if tags and sep and last.startswith("Tags: "):
+                content = body
             else:
-                # No [TYPE] prefix — use first line as title, rest as content
-                title = first_line.strip()
-                content = "\n\n".join(lines[1:]) if len(lines) > 1 else ""
+                content = rest
 
         # Build basic formatted item
         formatted = {

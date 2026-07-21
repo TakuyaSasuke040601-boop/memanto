@@ -41,7 +41,11 @@ from memanto.app.services.conversation_memory_extraction_service import (
 from memanto.app.services.memory_read_service import MemoryReadService
 from memanto.app.services.memory_write_service import MemoryWriteService
 from memanto.app.utils.errors import AuthorizationError, map_error_to_http_exception
-from memanto.app.utils.validation import CostGuard, validate_safe_id
+from memanto.app.utils.validation import (
+    CostGuard,
+    is_successful_write_result,
+    validate_safe_id,
+)
 from memanto.cli.client.direct_client import DirectClient
 from memanto.cli.config.manager import ConfigManager
 
@@ -362,22 +366,25 @@ async def remember(
 
         # Store memory in agent's namespace.
         result = await asyncio.to_thread(write_service.store_memory, memory)
+        status = str(result.get("status", "unknown"))
+        response_status = "queued" if is_successful_write_result(result) else status
 
-        # Log to local session Markdown summary
-        session_service = get_session_service()
-        await asyncio.to_thread(
-            session_service.log_memory_to_session_summary,
-            agent_id=agent_id,
-            session_id=session.session_id,
-            memory_record=memory,
-        )
+        # Log to local session Markdown summary only after a durable write.
+        if is_successful_write_result(result):
+            session_service = get_session_service()
+            await asyncio.to_thread(
+                session_service.log_memory_to_session_summary,
+                agent_id=agent_id,
+                session_id=session.session_id,
+                memory_record=memory,
+            )
 
         return {
             "memory_id": result["id"],
             "agent_id": agent_id,
             "session_id": session.session_id,
             "namespace": session.namespace,
-            "status": "queued",
+            "status": response_status,
             "provenance": request.provenance,
             "confidence": request.confidence,
             # Resolved memory type (auto-parsed when not explicitly provided)
@@ -445,7 +452,11 @@ async def batch_remember(
         # Log each memory to local MD summary
         session_service = get_session_service()
 
-        for record in memory_records:
+        batch_results = result.get("results", [])
+        for index, record in enumerate(memory_records):
+            item_result = batch_results[index] if index < len(batch_results) else None
+            if not is_successful_write_result(item_result):
+                continue
             await asyncio.to_thread(
                 session_service.log_memory_to_session_summary,
                 agent_id=agent_id,
@@ -610,11 +621,14 @@ async def extract_memories_from_conversation(
         )
 
         session_service = get_session_service()
+        batch_results = result.get("results", [])
         for index, record in enumerate(memory_records):
-            batch_results = result.get("results", [])
             memory_id = (
                 batch_results[index].get("id") if index < len(batch_results) else None
             )
+            item_result = batch_results[index] if index < len(batch_results) else None
+            if not is_successful_write_result(item_result):
+                continue
             await asyncio.to_thread(
                 session_service.log_memory_to_session_summary,
                 agent_id=agent_id,
