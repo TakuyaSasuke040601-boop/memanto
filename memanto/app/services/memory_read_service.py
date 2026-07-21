@@ -779,7 +779,9 @@ class MemoryReadService:
         # before exact tag filters run.
         tags_value = get_field("tags")
         if isinstance(tags_value, str):
-            tags = [tag_value for tag in tags_value.split(",") if (tag_value := tag.strip())]
+            tags = [
+                tag_value for tag in tags_value.split(",") if (tag_value := tag.strip())
+            ]
         elif isinstance(tags_value, list):
             tags = [
                 tag_value
