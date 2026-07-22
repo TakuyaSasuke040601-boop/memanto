@@ -52,6 +52,8 @@ jobs:
 
                   // Skip if the referenced number is actually a PR, not an issue.
                   if (issue.pull_request) continue;
+                  // Skip closed issues so only "active" bounties apply.
+                  if (issue.state !== "open") continue;
 
                   const hasBountyLabel = issue.labels.some((label) => {
                     const name = typeof label === "string" ? label : label.name;
@@ -66,7 +68,7 @@ jobs:
                   bountyLabels.add("bounty");
                   bountyLabels.add(`Bounty#${number}`);
                 } catch (error) {
-                  core.info(`PR #${pr.number}: could not read issue #${number}: ${error.message}`);
+                  core.info(`PR #${pr.number}: could not read issue #${number}: ${error?.message ?? String(error)}`);
                 }
               }
 
